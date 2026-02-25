@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Phone, Volume2, MoreHorizontal, Plus, Mic, Sparkles, LayoutTemplate, Image as ImageIcon, Play, SkipForward, SkipBack, Sun, Calendar, Bug, FileText } from 'lucide-react';
 import TitleBg from './assets/title_background.png';
+import BodyBg from './assets/para_background.jpg';
 // --- Types & Mock Data ---
 
 const THEMES = [
@@ -23,7 +24,7 @@ const LONG_TEXT_RESPONSE = [
     hasBlankSpace: true,
     decorations: ["🤖", "🧠", "💡", "📚", "✨"],
     titleImageUrl: TitleBg,
-    bgImageUrl: TitleBg,
+    bgImageUrl: BodyBg,
     instanceId: Date.now()
   }
 ];
@@ -263,7 +264,7 @@ const LongTextCard = ({ data, theme, isOptimized, isDebugMode }) => {
         // 获取标题和段落的区域用于 Debug 模式
         const cardRect = cardRef.current.getBoundingClientRect();
         const headers = cardRef.current.querySelectorAll('h1, h2, h3');
-        const paragraphs = cardRef.current.querySelectorAll('p');
+        const paragraphs = cardRef.current.querySelectorAll('.paragraph');
 
         const getTextRelativeRects = (elements) => {
           const rects = [];
@@ -286,8 +287,25 @@ const LongTextCard = ({ data, theme, isOptimized, isDebugMode }) => {
           return rects;
         };
 
+        const getWholeRects = (elements) => {
+          const rects = [];
+            Array.from(elements).forEach(el => {
+            const rect = el.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              rects.push({
+                top: rect.top - cardRect.top,
+                left: rect.left - cardRect.left,
+                width: rect.width,
+                height: rect.height
+              });
+            }
+          });
+          return rects;
+        };
+
+        console.log('Paragraph rects:', paragraphRects);
         setHeaderRects(getTextRelativeRects(headers));
-        //setParagraphRects(getTextRelativeRects(paragraphs));
+        setParagraphRects(getWholeRects(paragraphs));
       }, 100);
       return () => clearTimeout(timer);
     } else {
@@ -320,9 +338,9 @@ const LongTextCard = ({ data, theme, isOptimized, isDebugMode }) => {
 
   return (
     <div ref={cardRef} className="relative bg-white/60 backdrop-blur-md rounded-2xl p-4 mb-4 shadow-sm border border-white/40 overflow-hidden text-left">
-      <p className='text-sm mb-3 relative z-10'>RX 9070 GRE 是<strong>中端偏上、主打 2K 性价比</strong>的 RDNA4 显卡，RX 9040 是<strong>入门级、主打 1080P</strong>的 RDNA4 显卡，二者在<strong>核心规格、显存、性能、功耗、</strong>定位上差异巨大。</p>
+      <p className='text-sm relative z-10'>RX 9070 GRE 是<strong>中端偏上、主打 2K 性价比</strong>的 RDNA4 显卡，RX 9040 是<strong>入门级、主打 1080P</strong>的 RDNA4 显卡，二者在<strong>核心规格、显存、性能、功耗、</strong>定位上差异巨大。</p>
       <h1 className="font-bold text-md mb-2 mt-2 relative z-10">一、性能与定位差异</h1>
-      <div className="pl-4">
+      <div className="pl-4 relative paragraph z-10">
         <ul className="auto-hide-last-sibling-br list-disc">
           <li><strong>RX 9070 GRE</strong>
             <ul className="auto-hide-last-sibling-br list-disc pl-4 mt-1 mb-2">
@@ -345,8 +363,8 @@ const LongTextCard = ({ data, theme, isOptimized, isDebugMode }) => {
         </ul>
 
       </div>
-      <h1 className="font-bold text-md mb-2 mt-4 relative z-10">二、选购建议</h1>
-      <div className="pl-4 mb-3">
+      <h1 className="font-bold text-md mb-2 mt-2 relative z-10">二、选购建议</h1>
+      <div className="pl-4 relative mb-3 paragraph z-10">
         <ul className="auto-hide-last-sibling-br list-disc">
           <li>选 <strong>RX 9070 GRE</strong>：用 2K 显示器、玩 3A 大作、开高 / 光追、需要大带宽与缓存</li>
           <li>选 <strong>RX 9040</strong>：用 1080P 显示器、预算有限、低功耗主机、更看重显存容量</li>
@@ -358,7 +376,7 @@ const LongTextCard = ({ data, theme, isOptimized, isDebugMode }) => {
       {isOptimized && data.titleImageUrl && [...headerRects].map((rect, idx) => (
         <div
           key={`text-bg-${idx}`}
-          className="absolute pointer-events-none z-0 rounded-md opacity-50"
+          className="absolute pointer-events-none z-0 rounded-md"
           style={{
             top: `${rect.top - 8}px`,
             left: `${rect.left - 12}px`,
@@ -366,6 +384,21 @@ const LongTextCard = ({ data, theme, isOptimized, isDebugMode }) => {
             height: `${rect.height + 10}px`,
             backgroundImage: `url(${data.titleImageUrl})`,
             backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          }}
+        />
+      ))}
+
+      {isOptimized && data.bgImageUrl && [...paragraphRects].map((rect, idx) => (
+        <div
+          key={`text-bg-${idx}`}
+          className="absolute pointer-events-none z-0 rounded-md opacity-80"
+          style={{
+            top: `${rect.top - 8}px`,
+            left: `${rect.left - 12}px`,
+            width: `${rect.width + 20}px`,
+            height: `${rect.height + 10}px`,
+            backgroundImage: `url(${data.bgImageUrl})`,
             backgroundPosition: 'center'
           }}
         />
