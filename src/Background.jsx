@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Phone, Volume2, MoreHorizontal, Plus, Mic, Sparkles, LayoutTemplate, Image as ImageIcon, Play, SkipForward, SkipBack, Sun, Calendar, Bug } from 'lucide-react';
-
+import { ChevronLeft, Phone, Volume2, MoreHorizontal, Plus, Mic, Sparkles, LayoutTemplate, Image as ImageIcon, Play, SkipForward, SkipBack, Sun, Calendar, Bug, FileText } from 'lucide-react';
+import TitleBg from './assets/title_background.png';
 // --- Types & Mock Data ---
 
 const THEMES = [
@@ -8,6 +8,24 @@ const THEMES = [
   { id: 'spring_festival', name: '春节', bg: 'bg-gradient-to-b from-red-100 to-red-50', text: 'text-red-900' },
   { id: 'qingming', name: '清明', bg: 'bg-gradient-to-b from-green-100 to-green-50', text: 'text-green-900' },
   { id: 'sunny_beach', name: '阳光海滩', bg: 'bg-gradient-to-b from-blue-100 to-yellow-50', text: 'text-blue-900' },
+];
+
+const LONG_TEXT_RESPONSE = [
+  {
+    id: 1,
+    type: 'long_text_card',
+    title: "RX 9070 GRE 是中端偏上、主打 2K 性价比的 RDNA4 显卡，RX 9040 是入门级、主打 1080P的 RDNA4 显卡，二者在核心规格、显存、性能、功耗、定位上差异巨大。",
+    h1: "一、性能与定位差异",
+    p1: "<list></list>",
+    h2: "三、选购建议",
+    p2: "在经历了两次“AI寒冬”之后，随着计算能力的提升和大数据时代的到来，深度学习在2010年代迎来了爆发式增长。",
+    p3: "如今，AI已经广泛应用于自然语言处理、计算机视觉、自动驾驶等多个领域，深刻地改变了我们的生活方式。",
+    hasBlankSpace: true,
+    decorations: ["🤖", "🧠", "💡", "📚", "✨"],
+    titleImageUrl: TitleBg,
+    bgImageUrl: TitleBg,
+    instanceId: Date.now()
+  }
 ];
 
 const MOCK_RESPONSES = [
@@ -227,6 +245,207 @@ export const findBlankSpaces = (rootNode) => {
 
 // --- Components ---
 
+// 长文本专属卡片组件，方便后续实现独立的优化逻辑
+const LongTextCard = ({ data, theme, isOptimized, isDebugMode }) => {
+  const cardRef = React.useRef(null);
+  const [blankSpaces, setBlankSpaces] = useState([]);
+  const [obstacles, setObstacles] = useState([]);
+  const [headerRects, setHeaderRects] = useState([]);
+  const [paragraphRects, setParagraphRects] = useState([]);
+
+  useEffect(() => {
+    if ((isOptimized || isDebugMode) && cardRef.current) {
+      const timer = setTimeout(() => {
+        // const result = findBlankSpaces(cardRef.current);
+        // setBlankSpaces(result.emptyRects);
+        // setObstacles(result.obstacles);
+
+        // 获取标题和段落的区域用于 Debug 模式
+        const cardRect = cardRef.current.getBoundingClientRect();
+        const headers = cardRef.current.querySelectorAll('h1, h2, h3');
+        const paragraphs = cardRef.current.querySelectorAll('p');
+
+        const getTextRelativeRects = (elements) => {
+          const rects = [];
+          Array.from(elements).forEach(el => {
+            const textNodes = Array.from(el.childNodes).filter(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim().length > 0);
+            textNodes.forEach(textNode => {
+              const range = document.createRange();
+              range.selectNodeContents(textNode);
+              const rect = range.getBoundingClientRect();
+              if (rect.width > 0 && rect.height > 0) {
+                rects.push({
+                  top: rect.top - cardRect.top,
+                  left: rect.left - cardRect.left,
+                  width: rect.width,
+                  height: rect.height
+                });
+              }
+            });
+          });
+          return rects;
+        };
+
+        setHeaderRects(getTextRelativeRects(headers));
+        //setParagraphRects(getTextRelativeRects(paragraphs));
+      }, 100);
+      return () => clearTimeout(timer);
+    } else {
+      setBlankSpaces([]);
+      setObstacles([]);
+      setHeaderRects([]);
+      setParagraphRects([]);
+    }
+  }, [isOptimized, isDebugMode, data]);
+
+  const selectedSpaces = [];
+  if (isOptimized) {
+    for (const space of blankSpaces) {
+      const top = space.top + space.height / 2;
+      const left = space.left + space.width / 2;
+      
+      const isTooClose = selectedSpaces.some(selected => {
+        const dx = Math.abs(left - selected.left);
+        const dy = Math.abs(top - selected.top);
+        return Math.hypot(dx, dy) < 90;
+      });
+
+      if (!isTooClose) {
+        selectedSpaces.push({ top, left, width: space.width, height: space.height });
+      }
+
+      if (selectedSpaces.length >= 2) break;
+    }
+  }
+
+  return (
+    <div ref={cardRef} className="relative bg-white/60 backdrop-blur-md rounded-2xl p-4 mb-4 shadow-sm border border-white/40 overflow-hidden text-left">
+      <p className='text-sm mb-3 relative z-10'>RX 9070 GRE 是<strong>中端偏上、主打 2K 性价比</strong>的 RDNA4 显卡，RX 9040 是<strong>入门级、主打 1080P</strong>的 RDNA4 显卡，二者在<strong>核心规格、显存、性能、功耗、</strong>定位上差异巨大。</p>
+      <h1 className="font-bold text-md mb-2 mt-2 relative z-10">一、性能与定位差异</h1>
+      <div className="pl-4">
+        <ul className="auto-hide-last-sibling-br list-disc">
+          <li><strong>RX 9070 GRE</strong>
+            <ul className="auto-hide-last-sibling-br list-disc pl-4 mt-1 mb-2">
+              <li>定位：<strong>2K 高画质 / 高帧</strong>、性价比中端卡（对标 RTX 5060 Ti）</li>
+              <li>游戏：2K 高 / 超高画质 60–144fps；4K 中画质可玩</li>
+              <li>场景：3A 大作、2K 高刷、光追、AI 加速、生产力</li>
+              <li>优势：<strong>核心强、带宽高、光追 / AI 性能好、2K 更稳</strong></li>
+            </ul>
+            <div className="container-Uxvbjy md-box-line-break wrapper-GYqxgQ undefined"></div>
+          </li>
+          <li><strong>RX 9040</strong>
+            <ul className="auto-hide-last-sibling-br list-disc pl-4 mt-1 mb-2">
+              <li>定位：<strong>1080P 高画质</strong>、入门性价比（对标 RTX 4060）</li>
+              <li>游戏：1080P 高画质 60–100fps；2K 中低画质勉强</li>
+              <li>场景：网游、1080P 3A、轻度创作、低功耗平台</li>
+              <li>优势：<strong>16GB 大显存、功耗低、价格更便宜、1080P 够用</strong></li>
+            </ul>
+            <div className="container-Uxvbjy md-box-line-break wrapper-GYqxgQ undefined"></div>
+          </li>
+        </ul>
+
+      </div>
+      <h1 className="font-bold text-md mb-2 mt-4 relative z-10">二、选购建议</h1>
+      <div className="pl-4 mb-3">
+        <ul className="auto-hide-last-sibling-br list-disc">
+          <li>选 <strong>RX 9070 GRE</strong>：用 2K 显示器、玩 3A 大作、开高 / 光追、需要大带宽与缓存</li>
+          <li>选 <strong>RX 9040</strong>：用 1080P 显示器、预算有限、低功耗主机、更看重显存容量</li>
+        </ul>
+      </div>
+      <p className="text-sm relative z-10">需要我帮你对比这两张卡在<strong>2K/1080P</strong>下的<strong>主流 3A 游戏帧率</strong>，并给出更具体的选购建议吗？</p>
+
+      {/* 渲染文本区域的背景图片 */}
+      {isOptimized && data.titleImageUrl && [...headerRects].map((rect, idx) => (
+        <div
+          key={`text-bg-${idx}`}
+          className="absolute pointer-events-none z-0 rounded-md opacity-50"
+          style={{
+            top: `${rect.top - 8}px`,
+            left: `${rect.left - 12}px`,
+            width: `${rect.width + 20}px`,
+            height: `${rect.height + 10}px`,
+            backgroundImage: `url(${data.titleImageUrl})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          }}
+        />
+      ))}
+
+      {isOptimized && selectedSpaces.map((space, idx) => {
+        const emojiSize = Math.max(16, Math.min(space.width, space.height) - 30);
+        return (
+          <div 
+            key={idx}
+            className="decoration-element absolute opacity-40 pointer-events-none animate-pulse transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center"
+            style={{ 
+              top: `${space.top}px`, 
+              left: `${space.left}px`,
+              fontSize: `${emojiSize}px`,
+              lineHeight: 1
+            }}
+          >
+            {data.decorations ? data.decorations[(idx) % data.decorations.length] : "✨"}
+          </div>
+        );
+      })}
+
+      {/* Debug Mode: 渲染 Header 的红色边框 */}
+      {isDebugMode && headerRects.map((rect, idx) => (
+        <div
+          key={`debug-header-${idx}`}
+          className="absolute border-2 border-red-500 pointer-events-none z-50 bg-red-500/20"
+          style={{
+            top: `${rect.top}px`,
+            left: `${rect.left}px`,
+            width: `${rect.width}px`,
+            height: `${rect.height}px`
+          }}
+        />
+      ))}
+
+      {/* Debug Mode: 渲染 Paragraph 的蓝色边框 */}
+      {isDebugMode && paragraphRects.map((rect, idx) => (
+        <div
+          key={`debug-p-${idx}`}
+          className="absolute border-2 border-blue-500 pointer-events-none z-50 bg-blue-500/20"
+          style={{
+            top: `${rect.top}px`,
+            left: `${rect.left}px`,
+            width: `${rect.width}px`,
+            height: `${rect.height}px`
+          }}
+        />
+      ))}
+
+      {isDebugMode && blankSpaces.map((space, idx) => (
+        <div
+          key={`debug-blank-${idx}`}
+          className="absolute border border-red-500 pointer-events-none z-50 bg-red-500/10"
+          style={{
+            top: `${space.top}px`,
+            left: `${space.left}px`,
+            width: `${space.width}px`,
+            height: `${space.height}px`
+          }}
+        />
+      ))}
+
+      {isDebugMode && obstacles.map((obs, idx) => (
+        <div
+          key={`debug-obs-${idx}`}
+          className="absolute border border-blue-500 pointer-events-none z-50 bg-blue-500/10"
+          style={{
+            top: `${obs.top}px`,
+            left: `${obs.left}px`,
+            width: `${obs.width}px`,
+            height: `${obs.height}px`
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
 // 模拟的卡片组件
 const ResponseCard = ({ data, theme, isOptimized, isDebugMode }) => {
   const cardRef = React.useRef(null);
@@ -407,6 +626,9 @@ export default function XiaoyiAssistantDemo() {
   const [isOptimized, setIsOptimized] = useState(false);
   const [isDebugMode, setIsDebugMode] = useState(false);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [phoneSize, setPhoneSize] = useState({ width: 400, height: 800 });
+  const [currentLongTextCardIndex, setCurrentLongTextCardIndex] = useState(0);
+  const [inputSize, setInputSize] = useState({ width: 400, height: 800 });
 
   // 初始化欢迎消息
   useEffect(() => {
@@ -424,6 +646,12 @@ export default function XiaoyiAssistantDemo() {
     const response = MOCK_RESPONSES[currentCardIndex];
     setMessages(prev => [...prev, { ...response, instanceId: Date.now() }]);
     setCurrentCardIndex(prev => (prev + 1) % MOCK_RESPONSES.length);
+  };
+
+  const handleAddLongTextCard = () => {
+    const longTextCard = LONG_TEXT_RESPONSE[currentLongTextCardIndex];
+    setMessages(prev => [...prev, longTextCard]);
+    setCurrentLongTextCardIndex(prev => (prev + 1) % LONG_TEXT_RESPONSE.length);
   };
 
   const handleOptimizeBackground = () => {
@@ -472,6 +700,14 @@ export default function XiaoyiAssistantDemo() {
               <Plus className="w-5 h-5" />
               生成回答卡片
             </button>
+
+            <button
+              onClick={handleAddLongTextCard}
+              className="flex items-center justify-center gap-2 w-full py-3 bg-green-500 hover:bg-green-600 text-black rounded-xl transition-colors font-medium shadow-sm"
+            >
+              <FileText className="w-5 h-5" />
+              添加长文本卡片
+            </button>
             
             <button
               onClick={handleOptimizeBackground}
@@ -499,12 +735,45 @@ export default function XiaoyiAssistantDemo() {
             * 点击"AI优化卡片背景"后，系统会识别卡片中的空白区域，并根据当前主题插入相应的装饰图案，使排版不再枯燥。
           </p>
         </div>
+
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold mb-3 text-gray-700">3. 屏幕尺寸设置</h3>
+          <div className="flex gap-3 mb-3">
+            <div className="flex-1">
+              <label className="block text-xs text-gray-500 mb-1">宽度 (px)</label>
+              <input
+                type="number"
+                value={inputSize.width}
+                onChange={(e) => setInputSize(prev => ({ ...prev, width: Number(e.target.value) }))}
+                className="w-full p-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs text-gray-500 mb-1">高度 (px)</label>
+              <input
+                type="number"
+                value={inputSize.height}
+                onChange={(e) => setInputSize(prev => ({ ...prev, height: Number(e.target.value) }))}
+                className="w-full p-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+          <button
+            onClick={() => setPhoneSize(inputSize)}
+            className="w-full py-2 bg-gray-800 hover:bg-gray-900 text-blue-500 rounded-xl transition-colors text-sm font-medium shadow-sm"
+          >
+            应用尺寸
+          </button>
+        </div>
       </div>
 
       {/* 右侧手机模拟界面 */}
       <div className="flex-1 flex justify-center items-center">
         {/* 手机外壳 */}
-        <div className="w-[400px] h-[800px] bg-black rounded-[3rem] p-3 shadow-2xl relative">
+        <div 
+          className="bg-black rounded-[3rem] p-3 shadow-2xl relative transition-all duration-300"
+          style={{ width: `${phoneSize.width}px`, height: `${phoneSize.height}px` }}
+        >
           {/* 屏幕区域 */}
           <div className={`w-full h-full rounded-[2.5rem] overflow-hidden relative flex flex-col transition-colors duration-500 ${currentTheme.bg} ${currentTheme.text}`}>
             
@@ -540,6 +809,8 @@ export default function XiaoyiAssistantDemo() {
                 <div key={msg.instanceId || msg.id} className="mb-4">
                   {msg.type === 'system' ? (
                     <p className="text-sm leading-relaxed mb-6">{msg.content}</p>
+                  ) : msg.type === 'long_text_card' ? (
+                    <LongTextCard data={msg} theme={currentTheme} isOptimized={isOptimized} isDebugMode={isDebugMode} />
                   ) : (
                     <ResponseCard data={msg} theme={currentTheme} isOptimized={isOptimized} isDebugMode={isDebugMode} />
                   )}
