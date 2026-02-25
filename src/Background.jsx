@@ -215,8 +215,8 @@ export const findBlankSpaces = (rootNode) => {
     });
   });
 
-  // 过滤掉太小的空白区域 (例如小于 40x40)
-  const MIN_SIZE = 25;
+  // 过滤掉太小的空白区域 (例如小于 40x40，确保减去 20px padding 后 emoji 至少有 20px 大小)
+  const MIN_SIZE = 40;
   // 按照面积从大到小排序
   const finalEmptyRects = emptyRects
     .filter(r => r.width >= MIN_SIZE && r.height >= MIN_SIZE)
@@ -337,10 +337,8 @@ const ResponseCard = ({ data, theme, isOptimized, isDebugMode }) => {
         return Math.hypot(dx, dy) < 90;
       });
 
-      const isTooSmall = space.width < 40 || space.height < 40; // 过滤掉过小的空白区域
-
-      if (!isTooClose && !isTooSmall) {
-        selectedSpaces.push({ top, left });
+      if (!isTooClose) {
+        selectedSpaces.push({ top, left, width: space.width, height: space.height });
       }
 
       if (selectedSpaces.length >= 2) break;
@@ -352,15 +350,25 @@ const ResponseCard = ({ data, theme, isOptimized, isDebugMode }) => {
       {renderContent()}
       
       {/* 动态渲染在空白区域的装饰 */}
-      {isOptimized && selectedSpaces.map((space, idx) => (
-        <div 
-          key={idx}
-          className="decoration-element absolute text-3xl opacity-40 pointer-events-none animate-pulse transform -translate-x-1/2 -translate-y-1/2"
-          style={{ top: `${space.top}px`, left: `${space.left}px` }}
-        >
-          {data.decorations ? data.decorations[(data.instanceId + idx) % data.decorations.length] : "✨"}
-        </div>
-      ))}
+      {isOptimized && selectedSpaces.map((space, idx) => {
+        // 动态计算 emoji 大小：取空白区域宽高的最小值，减去 30px (即四周各留 15px padding)
+        const emojiSize = Math.max(16, Math.min(space.width, space.height) - 30);
+
+        return (
+          <div 
+            key={idx}
+            className="decoration-element absolute opacity-40 pointer-events-none animate-pulse transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center"
+            style={{ 
+              top: `${space.top}px`, 
+              left: `${space.left}px`,
+              fontSize: `${emojiSize}px`,
+              lineHeight: 1
+            }}
+          >
+            {data.decorations ? data.decorations[(idx) % data.decorations.length] : "✨"}
+          </div>
+        );
+      })}
 
       {/* Debug Mode: 渲染所有空白区域的红色边框 */}
       {isDebugMode && blankSpaces.map((space, idx) => (
