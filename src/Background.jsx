@@ -28,11 +28,12 @@ const MOCK_RESPONSES = [
   },
   {
     id: 3,
-    type: 'tech_card',
-    title: "鸿蒙电脑桌面新体验",
-    content: "全新的鸿蒙PC版桌面带来了更流畅的交互体验，支持多设备协同，让你在工作和娱乐中无缝切换。全新的UI设计更加现代化。",
-    hasBlankSpace: true,
-    decorations: ["💻", "🚀", "📱", "✨"],
+    type: 'music_card',
+    title: "正在播放",
+    songName: "Spring Breeze",
+    artist: "Unknown Artist",
+    hasBlankSpace: false,
+    decorations: ["🎵", "🎶", "🎧", "🎸"],
   },
   {
     id: 4,
@@ -64,13 +65,13 @@ const MOCK_RESPONSES = [
   },
   {
     id: 7,
-    type: 'music_card',
-    title: "正在播放",
-    songName: "Spring Breeze",
-    artist: "Unknown Artist",
-    hasBlankSpace: false,
-    decorations: ["🎵", "🎶", "🎧", "🎸"],
-  }
+    type: 'tech_card',
+    title: "鸿蒙电脑桌面新体验",
+    content: "全新的鸿蒙PC版桌面带来了更流畅的交互体验，支持多设备协同，让你在工作和娱乐中无缝切换。全新的UI设计更加现代化。",
+    hasBlankSpace: true,
+    decorations: ["💻", "🚀", "📱", "✨"],
+  },
+  
 ];
 
 // --- Utils ---
@@ -279,7 +280,6 @@ const ResponseCard = ({ data, theme, isOptimized, isDebugMode }) => {
           <>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-bold text-lg">{data.title}</h3>
-              <Sun className="w-6 h-6 text-yellow-500" />
             </div>
             <div className="flex items-end gap-2 mb-2">
               <span className="text-3xl font-bold">{data.temperature}</span>
@@ -323,26 +323,44 @@ const ResponseCard = ({ data, theme, isOptimized, isDebugMode }) => {
     }
   };
 
+  // 筛选出中心距离足够远的空白区域，避免装饰重叠
+  const selectedSpaces = [];
+  if (isOptimized) {
+    for (const space of blankSpaces) {
+      const top = space.top + space.height / 2;
+      const left = space.left + space.width / 2;
+      
+      const isTooClose = selectedSpaces.some(selected => {
+        const dx = Math.abs(left - selected.left);
+        const dy = Math.abs(top - selected.top);
+        // 增大最小距离阈值到 90px，强制图案在视觉上更分散，避免在同一片大空白区域扎堆
+        return Math.hypot(dx, dy) < 90;
+      });
+
+      const isTooSmall = space.width < 40 || space.height < 40; // 过滤掉过小的空白区域
+
+      if (!isTooClose && !isTooSmall) {
+        selectedSpaces.push({ top, left });
+      }
+
+      if (selectedSpaces.length >= 2) break;
+    }
+  }
+
   return (
     <div ref={cardRef} className="relative bg-white/60 backdrop-blur-md rounded-2xl p-4 mb-4 shadow-sm border border-white/40 overflow-hidden">
       {renderContent()}
       
       {/* 动态渲染在空白区域的装饰 */}
-      {isOptimized && blankSpaces.slice(0, 2).map((space, idx) => {
-        // 将装饰放在空白区域的中心
-        const top = space.top + space.height / 2;
-        const left = space.left + space.width / 2;
-        
-        return (
-          <div 
-            key={idx}
-            className="decoration-element absolute text-3xl opacity-40 pointer-events-none animate-pulse transform -translate-x-1/2 -translate-y-1/2"
-            style={{ top: `${top}px`, left: `${left}px` }}
-          >
-            {data.decorations ? data.decorations[(data.instanceId + idx) % data.decorations.length] : "✨"}
-          </div>
-        );
-      })}
+      {isOptimized && selectedSpaces.map((space, idx) => (
+        <div 
+          key={idx}
+          className="decoration-element absolute text-3xl opacity-40 pointer-events-none animate-pulse transform -translate-x-1/2 -translate-y-1/2"
+          style={{ top: `${space.top}px`, left: `${space.left}px` }}
+        >
+          {data.decorations ? data.decorations[(data.instanceId + idx) % data.decorations.length] : "✨"}
+        </div>
+      ))}
 
       {/* Debug Mode: 渲染所有空白区域的红色边框 */}
       {isDebugMode && blankSpaces.map((space, idx) => (
@@ -380,6 +398,7 @@ export default function XiaoyiAssistantDemo() {
   const [messages, setMessages] = useState([]);
   const [isOptimized, setIsOptimized] = useState(false);
   const [isDebugMode, setIsDebugMode] = useState(false);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
 
   // 初始化欢迎消息
   useEffect(() => {
@@ -393,9 +412,10 @@ export default function XiaoyiAssistantDemo() {
   }, []);
 
   const handleGenerateCard = () => {
-    // 随机选择一个模拟回复
-    const randomResponse = MOCK_RESPONSES[Math.floor(Math.random() * MOCK_RESPONSES.length)];
-    setMessages(prev => [...prev, { ...randomResponse, instanceId: Date.now() }]);
+    // 按顺序选择一个模拟回复
+    const response = MOCK_RESPONSES[currentCardIndex];
+    setMessages(prev => [...prev, { ...response, instanceId: Date.now() }]);
+    setCurrentCardIndex(prev => (prev + 1) % MOCK_RESPONSES.length);
   };
 
   const handleOptimizeBackground = () => {
